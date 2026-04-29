@@ -1,4 +1,7 @@
+from typing import Optional
+
 from algorithms.base_search import SearchAlgorithm
+from models.position import Position
 from services.path_reconstructor import reconstruct_path
 
 
@@ -6,7 +9,7 @@ class DFS(SearchAlgorithm):
     def solve(self, maze, start, goal):
         stack = [start]
         visited = {start}
-        parent = {start: None}
+        parent: dict[Position, Optional[Position]] = {start: None}
         expanded = 0
 
         while stack:

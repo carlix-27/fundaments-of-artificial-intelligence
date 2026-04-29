@@ -1,6 +1,8 @@
 from collections import deque
+from typing import Optional
 
 from algorithms.base_search import SearchAlgorithm
+from models.position import Position
 from services.path_reconstructor import reconstruct_path
 
 
@@ -8,7 +10,7 @@ class BFS(SearchAlgorithm):
     def solve(self, maze, start, goal):
         queue = deque([start])
         visited = {start}
-        parent = {start: None}
+        parent: dict[Position, Optional[Position]] = {start: None}
         expanded = 0
 
         while queue:

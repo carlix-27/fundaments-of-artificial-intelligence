@@ -1,6 +1,8 @@
 import heapq
+from typing import Optional
 
 from algorithms.base_search import SearchAlgorithm
+from models.position import Position
 from services.path_reconstructor import reconstruct_path
 
 
@@ -10,8 +12,8 @@ class AStar(SearchAlgorithm):
 
     def solve(self, maze, start, goal):
         open_set = [(self.heuristic(start, goal), 0, start)]
+        parent: dict[Position, Optional[Position]] = {start: None}
 
-        parent = {start: None}
         g_score = {start: 0}
 
         expanded = 0
