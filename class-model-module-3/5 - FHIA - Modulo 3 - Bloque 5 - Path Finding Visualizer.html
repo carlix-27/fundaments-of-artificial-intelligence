@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Visualizador de Algoritmos de Búsqueda - Bloque 4</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; }
+    .cell { transition: background-color 0.1s ease; }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useCallback, useRef } = React;
+
+    // Priority Queue para A*
+    class PriorityQueue {
+      constructor() { this.items = []; }
+      enqueue(element, priority) {
+        const item = { element, priority };
+        let added = false;
+        for (let i = 0; i < this.items.length; i++) {
+          if (item.priority < this.items[i].priority) {
+            this.items.splice(i, 0, item);
+            added = true;
+            break;
+          }
+        }
+        if (!added) this.items.push(item);
+      }
+      dequeue() { return this.items.shift()?.element; }
+      isEmpty() { return this.items.length === 0; }
+    }
+
+    // Laberintos predefinidos
+    const MAZE_10x10 = [
+      [0,0,0,1,0,0,0,0,0,0],
+      [1,1,0,1,0,1,1,1,1,0],
+      [0,0,0,0,0,0,0,0,1,0],
+      [0,1,1,1,1,1,1,0,1,0],
+      [0,0,0,0,0,0,1,0,0,0],
+      [1,1,1,1,1,0,1,1,1,0],
+      [0,0,0,0,0,0,0,0,0,0],
+      [0,1,1,1,1,1,1,1,1,0],
+      [0,0,0,0,0,0,0,0,1,0],
+      [1,1,1,1,1,1,1,0,0,0],
+    ];
+
+    const MAZE_15x15 = [
+      [0,0,0,0,0,1,0,0,0,0,0,0,0,0,0],
+      [0,1,1,1,0,1,0,1,1,1,1,1,1,1,0],
+      [0,0,0,1,0,0,0,0,0,0,0,0,0,1,0],
+      [1,1,0,1,1,1,1,1,1,1,1,1,0,1,0],
+      [0,0,0,0,0,0,0,0,0,0,0,1,0,0,0],
+      [0,1,1,1,1,1,1,1,1,1,0,1,1,1,1],
+      [0,0,0,0,0,0,0,0,0,1,0,0,0,0,0],
+      [0,1,1,1,1,1,1,1,0,1,1,1,1,1,0],
+      [0,1,0,0,0,0,0,1,0,0,0,0,0,0,0],
+      [0,1,0,1,1,1,0,1,1,1,1,1,1,1,0],
+      [0,0,0,1,0,0,0,0,0,0,0,0,0,1,0],
+      [1,1,1,1,0,1,1,1,1,1,1,1,0,1,0],
+      [0,0,0,0,0,1,0,0,0,0,0,1,0,0,0],
+      [0,1,1,1,1,1,0,1,1,1,0,1,1,1,0],
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    ];
+
+    const MAZE_20x20 = [
+      [0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0],
+      [0,1,1,1,0,1,0,1,1,1,1,1,0,1,0,1,1,1,1,0],
+      [0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1,0],
+      [1,1,0,1,1,1,1,1,1,1,0,1,1,1,1,1,1,0,1,0],
+      [0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1,0,0,0],
+      [0,1,1,1,1,1,1,1,0,1,1,1,1,1,1,0,1,1,1,0],
+      [0,0,0,0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0],
+      [0,1,1,1,1,1,0,1,1,1,1,1,1,0,1,1,1,1,1,0],
+      [0,1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0],
+      [0,1,0,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,0],
+      [0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0],
+      [1,1,1,1,0,1,1,1,1,0,1,1,1,1,1,1,1,0,1,0],
+      [0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,1,0,0,0],
+      [0,1,1,1,1,1,0,0,1,1,1,1,1,1,1,0,1,1,1,0],
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1,0],
+      [0,1,1,1,1,1,1,1,1,1,1,1,1,0,1,1,1,0,1,0],
+      [0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,0,0],
+      [1,1,1,1,1,1,1,1,1,1,1,0,1,1,1,0,1,1,1,0],
+      [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0],
+      [0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
+    ];
+
+    function PathfindingVisualizer() {
+      const [mazeSize, setMazeSize] = useState(10);
+      const [maze, setMaze] = useState(MAZE_10x10);
+      const [start, setStart] = useState([0, 0]);
+      const [goal, setGoal] = useState([9, 9]);
+      const [explored, setExplored] = useState(new Set());
+      const [frontier, setFrontier] = useState(new Set());
+      const [path, setPath] = useState([]);
+      const [running, setRunning] = useState(false);
+      const [algorithm, setAlgorithm] = useState('bfs');
+      const [speed, setSpeed] = useState(50);
+      const [stats, setStats] = useState({ expanded: 0, pathLength: 0 });
+      const runningRef = useRef(false);
+
+      const rows = maze.length;
+      const cols = maze[0].length;
+
+      // Convierte slider a delay (escala logarítmica)
+      const speedToDelay = (s) => {
+        if (s >= 100) return 1;
+        if (s <= 1) return 500;
+        return Math.round(500 * Math.pow(0.988, s));
+      };
+
+      const reset = useCallback(() => {
+        setExplored(new Set());
+        setFrontier(new Set());
+        setPath([]);
+        setStats({ expanded: 0, pathLength: 0 });
+        setRunning(false);
+        runningRef.current = false;
+      }, []);
+
+      const changeMazeSize = (size) => {
+        setMazeSize(size);
+        if (size === 10) setMaze(MAZE_10x10);
+        else if (size === 15) setMaze(MAZE_15x15);
+        else setMaze(MAZE_20x20);
+        setStart([0, 0]);
+        setGoal([size - 1, size - 1]);
+        reset();
+      };
+
+      const getNeighbors = useCallback((r, c) => {
+        const neighbors = [];
+        const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+        for (const [dr, dc] of dirs) {
+          const nr = r + dr, nc = c + dc;
+          if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && maze[nr][nc] === 0) {
+            neighbors.push([nr, nc]);
+          }
+        }
+        return neighbors;
+      }, [maze, rows, cols]);
+
+      const heuristic = useCallback((r, c) => {
+        return Math.abs(r - goal[0]) + Math.abs(c - goal[1]);
+      }, [goal]);
+
+      const key = (r, c) => `${r},${c}`;
+
+      const runSearch = useCallback(async () => {
+        reset();
+        setRunning(true);
+        runningRef.current = true;
+
+        const visited = new Set();
+        const parent = new Map();
+        let frontierData;
+        let expanded = 0;
+        const gScore = new Map();
+
+        if (algorithm === 'bfs') {
+          frontierData = [[...start]];
+        } else if (algorithm === 'dfs') {
+          frontierData = [[...start]];
+        } else {
+          frontierData = new PriorityQueue();
+          gScore.set(key(start[0], start[1]), 0);
+          frontierData.enqueue([...start], heuristic(start[0], start[1]));
+        }
+
+        visited.add(key(start[0], start[1]));
+        const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+        while ((algorithm === 'astar' ? !frontierData.isEmpty() : frontierData.length > 0) && runningRef.current) {
+          let current;
+          if (algorithm === 'bfs') current = frontierData.shift();
+          else if (algorithm === 'dfs') current = frontierData.pop();
+          else current = frontierData.dequeue();
+
+          if (!current) break;
+          const [r, c] = current;
+          expanded++;
+
+          setExplored(prev => new Set([...prev, key(r, c)]));
+          setStats(prev => ({ ...prev, expanded }));
+
+          if (r === goal[0] && c === goal[1]) {
+            const pathResult = [];
+            let curr = key(r, c);
+            while (curr) {
+              const [pr, pc] = curr.split(',').map(Number);
+              pathResult.unshift([pr, pc]);
+              curr = parent.get(curr);
+            }
+            setPath(pathResult);
+            setStats({ expanded, pathLength: pathResult.length });
+            setRunning(false);
+            runningRef.current = false;
+            return;
+          }
+
+          const neighbors = getNeighbors(r, c);
+          const currentFrontierKeys = new Set();
+
+          for (const [nr, nc] of neighbors) {
+            const nKey = key(nr, nc);
+            
+            if (algorithm === 'astar') {
+              const tentativeG = (gScore.get(key(r, c)) || 0) + 1;
+              if (!gScore.has(nKey) || tentativeG < gScore.get(nKey)) {
+                gScore.set(nKey, tentativeG);
+                parent.set(nKey, key(r, c));
+                const f = tentativeG + heuristic(nr, nc);
+                frontierData.enqueue([nr, nc], f);
+                visited.add(nKey);
+                currentFrontierKeys.add(nKey);
+              }
+            } else {
+              if (!visited.has(nKey)) {
+                visited.add(nKey);
+                parent.set(nKey, key(r, c));
+                frontierData.push([nr, nc]);
+                currentFrontierKeys.add(nKey);
+              }
+            }
+          }
+
+          setFrontier(currentFrontierKeys);
+          await delay(speedToDelay(speed));
+        }
+
+        if (runningRef.current) {
+          setStats(prev => ({ ...prev, pathLength: -1 }));
+        }
+        setRunning(false);
+        runningRef.current = false;
+      }, [algorithm, start, goal, getNeighbors, heuristic, speed, reset]);
+
+      const stopSearch = () => {
+        runningRef.current = false;
+        setRunning(false);
+      };
+
+      const getCellColor = (r, c) => {
+        const k = key(r, c);
+        if (r === start[0] && c === start[1]) return '#0d9488';
+        if (r === goal[0] && c === goal[1]) return '#e85d04';
+        if (maze[r][c] === 1) return '#1e3a5f';
+        if (path.some(([pr, pc]) => pr === r && pc === c)) return '#fcd34d';
+        if (explored.has(k)) {
+          if (algorithm === 'bfs') return '#93c5fd';
+          if (algorithm === 'dfs') return '#fdba74';
+          return '#86efac';
+        }
+        if (frontier.has(k)) return '#c4b5fd';
+        return '#f3f4f6';
+      };
+
+      const cellSize = mazeSize <= 10 ? 36 : mazeSize <= 15 ? 28 : 22;
+
+      return (
+        <div className="p-6 max-w-6xl mx-auto">
+          {/* Header */}
+          <div className="text-center mb-6">
+            <h1 className="text-3xl font-bold text-gray-800 mb-2">
+              🔍 Visualizador de Algoritmos de Búsqueda
+            </h1>
+            <p className="text-gray-600">
+              Bloque 4: Búsqueda Clásica — Compara BFS, DFS y A* en tiempo real
+            </p>
+          </div>
+
+          {/* Controls */}
+          <div className="bg-white rounded-xl shadow-md p-4 mb-6">
+            <div className="flex flex-wrap gap-4 items-center justify-center">
+              {/* Algorithm selector */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { setAlgorithm('bfs'); reset(); }}
+                  className={`px-4 py-2 rounded-lg font-semibold transition ${
+                    algorithm === 'bfs' 
+                      ? 'bg-blue-500 text-white shadow-lg' 
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  BFS
+                </button>
+                <button
+                  onClick={() => { setAlgorithm('dfs'); reset(); }}
+                  className={`px-4 py-2 rounded-lg font-semibold transition ${
+                    algorithm === 'dfs' 
+                      ? 'bg-orange-500 text-white shadow-lg' 
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  DFS
+                </button>
+                <button
+                  onClick={() => { setAlgorithm('astar'); reset(); }}
+                  className={`px-4 py-2 rounded-lg font-semibold transition ${
+                    algorithm === 'astar' 
+                      ? 'bg-teal-500 text-white shadow-lg' 
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  A*
+                </button>
+              </div>
+
+              {/* Maze size */}
+              <div className="flex items-center gap-2">
+                <span className="text-gray-600 text-sm">Tamaño:</span>
+                <select
+                  value={mazeSize}
+                  onChange={(e) => changeMazeSize(Number(e.target.value))}
+                  className="px-3 py-2 border rounded-lg bg-white"
+                  disabled={running}
+                >
+                  <option value={10}>10×10</option>
+                  <option value={15}>15×15</option>
+                  <option value={20}>20×20</option>
+                </select>
+              </div>
+
+              {/* Speed control */}
+              <div className="flex items-center gap-2">
+                <span className="text-gray-600 text-sm">Velocidad:</span>
+                <span className="text-sm">🐢</span>
+                <input
+                  type="range"
+                  min="1"
+                  max="100"
+                  value={speed}
+                  onChange={(e) => setSpeed(Number(e.target.value))}
+                  className="w-32"
+                />
+                <span className="text-sm">🐇</span>
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex gap-2">
+                {!running ? (
+                  <button
+                    onClick={runSearch}
+                    className="px-6 py-2 bg-green-500 text-white rounded-lg font-semibold hover:bg-green-600 transition shadow"
+                  >
+                    ▶ Ejecutar
+                  </button>
+                ) : (
+                  <button
+                    onClick={stopSearch}
+                    className="px-6 py-2 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 transition shadow"
+                  >
+                    ⏹ Detener
+                  </button>
+                )}
+                <button
+                  onClick={reset}
+                  className="px-4 py-2 bg-gray-500 text-white rounded-lg font-semibold hover:bg-gray-600 transition"
+                  disabled={running}
+                >
+                  ↺ Reset
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Main content */}
+          <div className="flex gap-6 justify-center flex-wrap">
+            {/* Maze */}
+            <div className="bg-white rounded-xl shadow-md p-4">
+              <div 
+                className="grid gap-px bg-gray-300 p-px rounded-lg"
+                style={{ gridTemplateColumns: `repeat(${cols}, ${cellSize}px)` }}
+              >
+                {maze.map((row, r) =>
+                  row.map((cell, c) => (
+                    <div
+                      key={`${r}-${c}`}
+                      className="cell flex items-center justify-center text-xs font-bold"
+                      style={{
+                        width: cellSize,
+                        height: cellSize,
+                        backgroundColor: getCellColor(r, c),
+                      }}
+                    >
+                      {r === start[0] && c === start[1] && <span className="text-white">S</span>}
+                      {r === goal[0] && c === goal[1] && <span className="text-white">G</span>}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Stats panel */}
+            <div className="bg-white rounded-xl shadow-md p-6 w-72">
+              <h2 className="text-xl font-bold text-gray-800 mb-4">📊 Estadísticas</h2>
+              
+              <div className="space-y-4">
+                <div className="bg-gray-100 rounded-lg p-4">
+                  <div className="text-gray-600 text-sm mb-1">Algoritmo</div>
+                  <div className="text-2xl font-bold" style={{
+                    color: algorithm === 'bfs' ? '#3b82f6' : 
+                           algorithm === 'dfs' ? '#f97316' : '#0d9488'
+                  }}>
+                    {algorithm === 'bfs' ? 'BFS (Breadth-First)' : 
+                     algorithm === 'dfs' ? 'DFS (Depth-First)' : 'A* (A-Star)'}
+                  </div>
+                </div>
+
+                <div className="bg-gray-100 rounded-lg p-4">
+                  <div className="text-gray-600 text-sm mb-1">Nodos Expandidos</div>
+                  <div className="text-4xl font-bold text-gray-800">{stats.expanded}</div>
+                </div>
+
+                <div className="bg-gray-100 rounded-lg p-4">
+                  <div className="text-gray-600 text-sm mb-1">Longitud del Camino</div>
+                  <div className="text-4xl font-bold text-gray-800">
+                    {stats.pathLength === 0 ? '—' : 
+                     stats.pathLength === -1 ? '∅' : stats.pathLength}
+                  </div>
+                </div>
+
+                {path.length > 0 && (
+                  <div className="bg-green-100 rounded-lg p-4 border-2 border-green-400">
+                    <div className="text-green-700 font-semibold text-center">
+                      ✓ ¡Camino encontrado!
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Legend */}
+              <div className="mt-6 pt-4 border-t">
+                <h3 className="text-sm font-semibold text-gray-600 mb-3">Leyenda</h3>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded" style={{ backgroundColor: '#0d9488' }}></div>
+                    <span>Start (S)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded" style={{ backgroundColor: '#e85d04' }}></div>
+                    <span>Goal (G)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded" style={{ backgroundColor: '#1e3a5f' }}></div>
+                    <span>Pared</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded" style={{ backgroundColor: '#fcd34d' }}></div>
+                    <span>Camino</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded" style={{ backgroundColor: algorithm === 'bfs' ? '#93c5fd' : algorithm === 'dfs' ? '#fdba74' : '#86efac' }}></div>
+                    <span>Explorado</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded" style={{ backgroundColor: '#c4b5fd' }}></div>
+                    <span>Frontera</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Algorithm explanation */}
+          <div className="mt-6 bg-white rounded-xl shadow-md p-6">
+            <h2 className="text-xl font-bold text-gray-800 mb-3">
+              {algorithm === 'bfs' ? '📘 BFS: Breadth-First Search' :
+               algorithm === 'dfs' ? '📙 DFS: Depth-First Search' :
+               '📗 A*: A-Star Search'}
+            </h2>
+            
+            {algorithm === 'bfs' && (
+              <div className="text-gray-700 space-y-2">
+                <p><strong>Estrategia:</strong> Explora por niveles usando una <code className="bg-gray-100 px-1 rounded">cola (FIFO)</code>. Visita todos los nodos a distancia d antes de pasar a d+1.</p>
+                <p><strong>Garantías:</strong> <span className="text-green-600">✓ Completo</span>, <span className="text-green-600">✓ Óptimo</span> (con costo uniforme)</p>
+                <p><strong>Complejidad:</strong> Tiempo O(b<sup>d</sup>), Espacio O(b<sup>d</sup>) — ⚠️ El espacio es el problema</p>
+                <p><strong>Observa:</strong> Expande en "ondas" concéntricas desde el inicio.</p>
+              </div>
+            )}
+            
+            {algorithm === 'dfs' && (
+              <div className="text-gray-700 space-y-2">
+                <p><strong>Estrategia:</strong> Explora en profundidad usando una <code className="bg-gray-100 px-1 rounded">pila (LIFO)</code>. Va hasta el fondo antes de retroceder (backtrack).</p>
+                <p><strong>Garantías:</strong> <span className="text-red-600">✗ No completo</span> (sin límite), <span className="text-red-600">✗ No óptimo</span></p>
+                <p><strong>Complejidad:</strong> Tiempo O(b<sup>m</sup>), Espacio O(bm) — <span className="text-green-600">✓ Espacio lineal</span></p>
+                <p><strong>Observa:</strong> Sigue un camino largo antes de explorar alternativas. El camino encontrado probablemente NO es el más corto.</p>
+              </div>
+            )}
+            
+            {algorithm === 'astar' && (
+              <div className="text-gray-700 space-y-2">
+                <p><strong>Estrategia:</strong> Usa <code className="bg-gray-100 px-1 rounded">f(n) = g(n) + h(n)</code> donde g = costo acumulado, h = heurística (Manhattan).</p>
+                <p><strong>Garantías:</strong> <span className="text-green-600">✓ Completo</span>, <span className="text-green-600">✓ Óptimo</span> (con h admisible)</p>
+                <p><strong>Complejidad:</strong> Depende de la heurística — mejor que BFS en la práctica</p>
+                <p><strong>Observa:</strong> Se "guía" hacia el objetivo, <strong>expandiendo menos nodos que BFS</strong> para encontrar el mismo camino óptimo.</p>
+              </div>
+            )}
+          </div>
+
+          {/* Challenge */}
+          <div className="mt-6 bg-gradient-to-r from-teal-500 to-blue-500 rounded-xl shadow-md p-6 text-white">
+            <h2 className="text-xl font-bold mb-2">💡 Desafío</h2>
+            <p>
+              Ejecuta los tres algoritmos en el mismo laberinto y compara los <strong>nodos expandidos</strong>. 
+              ¿Por qué A* expande menos nodos que BFS aunque ambos encuentran el camino óptimo?
+            </p>
+          </div>
+
+          {/* Footer */}
+          <div className="mt-6 text-center text-gray-500 text-sm">
+            Fundamentos e Historia de la IA — Universidad Austral — Bloque 4: Búsqueda Clásica
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.render(<PathfindingVisualizer />, document.getElementById('root'));
+  </script>
+</body>
+</html>
