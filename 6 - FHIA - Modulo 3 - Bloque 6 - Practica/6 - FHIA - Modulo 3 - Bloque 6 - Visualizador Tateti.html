@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tateti con Minimax - Bloque 5</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a365d 0%, #2d4a7c 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            color: #1a202c;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 800px;
+            width: 100%;
+        }
+        
+        h1 {
+            color: #1a365d;
+            text-align: center;
+            margin-bottom: 5px;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #718096;
+            margin-bottom: 25px;
+            font-size: 14px;
+        }
+        
+        .game-area {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+            justify-content: center;
+            align-items: flex-start;
+        }
+        
+        .board-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 100px);
+            grid-template-rows: repeat(3, 100px);
+            gap: 8px;
+            background: #1a365d;
+            padding: 8px;
+            border-radius: 12px;
+        }
+        
+        .cell {
+            background: #f7fafc;
+            border: none;
+            border-radius: 8px;
+            font-size: 48px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .cell:hover:not(.disabled) {
+            background: #edf2f7;
+            transform: scale(1.05);
+        }
+        
+        .cell.disabled {
+            cursor: not-allowed;
+        }
+        
+        .cell.x {
+            color: #e07028;
+        }
+        
+        .cell.o {
+            color: #1a9988;
+        }
+        
+        .cell.winning {
+            animation: pulse 0.5s ease-in-out infinite alternate;
+        }
+        
+        @keyframes pulse {
+            from { background: #fef3c7; }
+            to { background: #fcd34d; }
+        }
+        
+        .stats-section {
+            flex: 1;
+            min-width: 280px;
+        }
+        
+        .status {
+            text-align: center;
+            font-size: 20px;
+            font-weight: bold;
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 8px;
+            background: #f7fafc;
+        }
+        
+        .status.thinking {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .status.win-x {
+            background: #fed7aa;
+            color: #c2410c;
+        }
+        
+        .status.win-o {
+            background: #ccfbf1;
+            color: #0f766e;
+        }
+        
+        .status.draw {
+            background: #e2e8f0;
+            color: #475569;
+        }
+        
+        .stats-box {
+            background: #f7fafc;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .stats-box h3 {
+            color: #1a365d;
+            margin-bottom: 15px;
+            font-size: 16px;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 8px;
+        }
+        
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #edf2f7;
+        }
+        
+        .stat-row:last-child {
+            border-bottom: none;
+        }
+        
+        .stat-label {
+            color: #718096;
+            font-size: 14px;
+        }
+        
+        .stat-value {
+            font-weight: bold;
+            color: #1a365d;
+            font-size: 14px;
+        }
+        
+        .stat-value.highlight {
+            color: #e07028;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        
+        button {
+            padding: 12px 24px;
+            font-size: 14px;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: #e07028;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #c65d1a;
+            transform: translateY(-2px);
+        }
+        
+        .btn-secondary {
+            background: #1a365d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #2d4a7c;
+            transform: translateY(-2px);
+        }
+        
+        .btn-outline {
+            background: white;
+            color: #1a365d;
+            border: 2px solid #1a365d;
+        }
+        
+        .btn-outline:hover {
+            background: #1a365d;
+            color: white;
+        }
+        
+        .options {
+            background: #f7fafc;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .options h3 {
+            color: #1a365d;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+        
+        .option-group {
+            margin-bottom: 15px;
+        }
+        
+        .option-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #4a5568;
+            font-size: 14px;
+        }
+        
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 14px;
+            background: white;
+        }
+        
+        select:focus {
+            outline: none;
+            border-color: #1a365d;
+        }
+        
+        .algorithm-comparison {
+            background: #1a365d;
+            color: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 25px;
+        }
+        
+        .algorithm-comparison h3 {
+            margin-bottom: 15px;
+            font-size: 16px;
+            color: #e07028;
+        }
+        
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        
+        .comparison-table th,
+        .comparison-table td {
+            padding: 10px 8px;
+            text-align: center;
+            border-bottom: 1px solid #2d4a7c;
+        }
+        
+        .comparison-table th {
+            color: #a0aec0;
+            font-weight: normal;
+            font-size: 12px;
+        }
+        
+        .comparison-table td {
+            color: white;
+        }
+        
+        .comparison-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px solid #e2e8f0;
+            color: #718096;
+            font-size: 12px;
+        }
+        
+        .move-history {
+            max-height: 150px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+            background: #2d3748;
+            color: #a0aec0;
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+        
+        .move-history .move-x {
+            color: #f6ad55;
+        }
+        
+        .move-history .move-o {
+            color: #4fd1c5;
+        }
+        
+        @media (max-width: 600px) {
+            .board {
+                grid-template-columns: repeat(3, 80px);
+                grid-template-rows: repeat(3, 80px);
+            }
+            
+            .cell {
+                font-size: 36px;
+            }
+            
+            .game-area {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎮 Tateti con Minimax</h1>
+        <p class="subtitle">Bloque 5: Búsqueda Adversaria y Juegos — Universidad Austral</p>
+        
+        <div class="game-area">
+            <div class="board-section">
+                <div class="board" id="board">
+                    <!-- Celdas generadas por JS -->
+                </div>
+                <div class="status" id="status">Tu turno (O)</div>
+                <div class="controls">
+                    <button class="btn-primary" onclick="resetGame()">🔄 Nueva Partida</button>
+                    <button class="btn-outline" onclick="runBenchmark()">📊 Benchmark</button>
+                </div>
+            </div>
+            
+            <div class="stats-section">
+                <div class="options">
+                    <h3>⚙️ Opciones</h3>
+                    <div class="option-group">
+                        <label>Algoritmo de la IA:</label>
+                        <select id="algorithm" onchange="resetGame()">
+                            <option value="minimax">Minimax puro</option>
+                            <option value="alphabeta" selected>Minimax + Alfa-Beta</option>
+                            <option value="alphabeta-ordered">Alfa-Beta ordenado</option>
+                        </select>
+                    </div>
+                    <div class="option-group">
+                        <label>Jugador humano:</label>
+                        <select id="humanPlayer" onchange="resetGame()">
+                            <option value="O" selected>O (segundo)</option>
+                            <option value="X">X (primero)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="stats-box">
+                    <h3>📈 Estadísticas del Último Movimiento</h3>
+                    <div class="stat-row">
+                        <span class="stat-label">Nodos explorados:</span>
+                        <span class="stat-value" id="nodes">-</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Tiempo:</span>
+                        <span class="stat-value" id="time">-</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Valor Minimax:</span>
+                        <span class="stat-value" id="minimaxValue">-</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Mejor movimiento:</span>
+                        <span class="stat-value highlight" id="bestMove">-</span>
+                    </div>
+                </div>
+                
+                <div class="stats-box">
+                    <h3>📜 Historial</h3>
+                    <div class="move-history" id="history">
+                        Partida nueva...
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="algorithm-comparison">
+            <h3>⚡ Comparación de Algoritmos (desde tablero vacío)</h3>
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>Algoritmo</th>
+                        <th>Nodos</th>
+                        <th>Tiempo</th>
+                        <th>Mejora</th>
+                    </tr>
+                </thead>
+                <tbody id="benchmarkResults">
+                    <tr>
+                        <td>Minimax puro</td>
+                        <td id="bench-minimax-nodes">-</td>
+                        <td id="bench-minimax-time">-</td>
+                        <td>1.0x</td>
+                    </tr>
+                    <tr>
+                        <td>Alfa-Beta</td>
+                        <td id="bench-alphabeta-nodes">-</td>
+                        <td id="bench-alphabeta-time">-</td>
+                        <td id="bench-alphabeta-improvement">-</td>
+                    </tr>
+                    <tr>
+                        <td>Alfa-Beta ordenado</td>
+                        <td id="bench-ordered-nodes">-</td>
+                        <td id="bench-ordered-time">-</td>
+                        <td id="bench-ordered-improvement">-</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p style="font-size: 11px; color: #a0aec0; margin-top: 10px; text-align: center;">
+                Ejecutá "📊 Benchmark" para comparar los algoritmos
+            </p>
+        </div>
+        
+        <div class="footer">
+            <p>Fundamentos e Historia de la Inteligencia Artificial — Universidad Austral</p>
+            <p>Práctica Bloque 5: Búsqueda Adversaria</p>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================
+        // ESTADO DEL JUEGO
+        // ============================================================
+        
+        let board = [[' ', ' ', ' '], [' ', ' ', ' '], [' ', ' ', ' ']];
+        let gameOver = false;
+        let nodesExplored = 0;
+        let moveHistory = [];
+        
+        const EMPTY = ' ';
+        const X = 'X';
+        const O = 'O';
+        
+        // ============================================================
+        // FUNCIONES DEL JUEGO (igual que en Python)
+        // ============================================================
+        
+        function getActions(state) {
+            const actions = [];
+            for (let r = 0; r < 3; r++) {
+                for (let c = 0; c < 3; c++) {
+                    if (state[r][c] === EMPTY) {
+                        actions.push([r, c]);
+                    }
+                }
+            }
+            return actions;
+        }
+        
+        function getResult(state, action, player) {
+            const newState = state.map(row => [...row]);
+            newState[action[0]][action[1]] = player;
+            return newState;
+        }
+        
+        function checkWinner(state) {
+            const lines = [
+                [[0,0], [0,1], [0,2]], // filas
+                [[1,0], [1,1], [1,2]],
+                [[2,0], [2,1], [2,2]],
+                [[0,0], [1,0], [2,0]], // columnas
+                [[0,1], [1,1], [2,1]],
+                [[0,2], [1,2], [2,2]],
+                [[0,0], [1,1], [2,2]], // diagonales
+                [[0,2], [1,1], [2,0]]
+            ];
+            
+            for (const line of lines) {
+                const [a, b, c] = line;
+                const v1 = state[a[0]][a[1]];
+                const v2 = state[b[0]][b[1]];
+                const v3 = state[c[0]][c[1]];
+                if (v1 !== EMPTY && v1 === v2 && v2 === v3) {
+                    return { winner: v1, line: line };
+                }
+            }
+            return null;
+        }
+        
+        function isTerminal(state) {
+            if (checkWinner(state)) return true;
+            return getActions(state).length === 0;
+        }
+        
+        function utility(state) {
+            const result = checkWinner(state);
+            if (!result) return 0;
+            return result.winner === X ? 1 : -1;
+        }
+        
+        // ============================================================
+        // MINIMAX Y VARIANTES
+        // ============================================================
+        
+        function minimax(state, isMaxTurn) {
+            nodesExplored++;
+            
+            if (isTerminal(state)) {
+                return utility(state);
+            }
+            
+            if (isMaxTurn) {
+                let value = -Infinity;
+                for (const action of getActions(state)) {
+                    const newState = getResult(state, action, X);
+                    value = Math.max(value, minimax(newState, false));
+                }
+                return value;
+            } else {
+                let value = Infinity;
+                for (const action of getActions(state)) {
+                    const newState = getResult(state, action, O);
+                    value = Math.min(value, minimax(newState, true));
+                }
+                return value;
+            }
+        }
+        
+        function alphabeta(state, isMaxTurn, alpha, beta) {
+            nodesExplored++;
+            
+            if (isTerminal(state)) {
+                return utility(state);
+            }
+            
+            if (isMaxTurn) {
+                let value = -Infinity;
+                for (const action of getActions(state)) {
+                    const newState = getResult(state, action, X);
+                    value = Math.max(value, alphabeta(newState, false, alpha, beta));
+                    alpha = Math.max(alpha, value);
+                    if (value >= beta) break; // Poda
+                }
+                return value;
+            } else {
+                let value = Infinity;
+                for (const action of getActions(state)) {
+                    const newState = getResult(state, action, O);
+                    value = Math.min(value, alphabeta(newState, true, alpha, beta));
+                    beta = Math.min(beta, value);
+                    if (value <= alpha) break; // Poda
+                }
+                return value;
+            }
+        }
+        
+        function getOrderedActions(state) {
+            const center = [[1, 1]];
+            const corners = [[0, 0], [0, 2], [2, 0], [2, 2]];
+            const edges = [[0, 1], [1, 0], [1, 2], [2, 1]];
+            const preferred = [...center, ...corners, ...edges];
+            
+            const available = new Set(getActions(state).map(a => `${a[0]},${a[1]}`));
+            return preferred.filter(p => available.has(`${p[0]},${p[1]}`));
+        }
+        
+        function alphabetaOrdered(state, isMaxTurn, alpha, beta) {
+            nodesExplored++;
+            
+            if (isTerminal(state)) {
+                return utility(state);
+            }
+            
+            if (isMaxTurn) {
+                let value = -Infinity;
+                for (const action of getOrderedActions(state)) {
+                    const newState = getResult(state, action, X);
+                    value = Math.max(value, alphabetaOrdered(newState, false, alpha, beta));
+                    alpha = Math.max(alpha, value);
+                    if (value >= beta) break;
+                }
+                return value;
+            } else {
+                let value = Infinity;
+                for (const action of getOrderedActions(state)) {
+                    const newState = getResult(state, action, O);
+                    value = Math.min(value, alphabetaOrdered(newState, true, alpha, beta));
+                    beta = Math.min(beta, value);
+                    if (value <= alpha) break;
+                }
+                return value;
+            }
+        }
+        
+        // ============================================================
+        // MEJOR MOVIMIENTO
+        // ============================================================
+        
+        function getBestMove(state, player, algorithm) {
+            nodesExplored = 0;
+            const isMax = player === X;
+            let bestValue = isMax ? -Infinity : Infinity;
+            let bestMoves = [];
+            
+            const actions = algorithm === 'alphabeta-ordered' ? getOrderedActions(state) : getActions(state);
+            
+            for (const action of actions) {
+                const newState = getResult(state, action, player);
+                let value;
+                
+                switch (algorithm) {
+                    case 'minimax':
+                        value = minimax(newState, !isMax);
+                        break;
+                    case 'alphabeta':
+                        value = alphabeta(newState, !isMax, -Infinity, Infinity);
+                        break;
+                    case 'alphabeta-ordered':
+                        value = alphabetaOrdered(newState, !isMax, -Infinity, Infinity);
+                        break;
+                }
+                
+                if (isMax) {
+                    if (value > bestValue) {
+                        bestValue = value;
+                        bestMoves = [action];
+                    } else if (value === bestValue) {
+                        bestMoves.push(action);
+                    }
+                } else {
+                    if (value < bestValue) {
+                        bestValue = value;
+                        bestMoves = [action];
+                    } else if (value === bestValue) {
+                        bestMoves.push(action);
+                    }
+                }
+            }
+            
+            // Preferir centro en empate
+            const preference = [[1,1], [0,0], [0,2], [2,0], [2,2], [0,1], [1,0], [1,2], [2,1]];
+            for (const pref of preference) {
+                if (bestMoves.some(m => m[0] === pref[0] && m[1] === pref[1])) {
+                    return { move: pref, value: bestValue, nodes: nodesExplored };
+                }
+            }
+            
+            return { move: bestMoves[0], value: bestValue, nodes: nodesExplored };
+        }
+        
+        // ============================================================
+        // INTERFAZ DE USUARIO
+        // ============================================================
+        
+        function createBoard() {
+            const boardEl = document.getElementById('board');
+            boardEl.innerHTML = '';
+            
+            for (let r = 0; r < 3; r++) {
+                for (let c = 0; c < 3; c++) {
+                    const cell = document.createElement('button');
+                    cell.className = 'cell';
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+                    cell.onclick = () => handleCellClick(r, c);
+                    boardEl.appendChild(cell);
+                }
+            }
+        }
+        
+        function updateBoard() {
+            const cells = document.querySelectorAll('.cell');
+            cells.forEach(cell => {
+                const r = parseInt(cell.dataset.row);
+                const c = parseInt(cell.dataset.col);
+                const value = board[r][c];
+                
+                cell.textContent = value === EMPTY ? '' : value;
+                cell.className = 'cell';
+                
+                if (value === X) cell.classList.add('x');
+                if (value === O) cell.classList.add('o');
+                if (value !== EMPTY || gameOver) cell.classList.add('disabled');
+            });
+            
+            // Highlight winning line
+            const result = checkWinner(board);
+            if (result) {
+                for (const pos of result.line) {
+                    const cell = document.querySelector(`[data-row="${pos[0]}"][data-col="${pos[1]}"]`);
+                    cell.classList.add('winning');
+                }
+            }
+        }
+        
+        function updateStatus(message, type = '') {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = message;
+            statusEl.className = 'status ' + type;
+        }
+        
+        function updateStats(nodes, time, value, move) {
+            document.getElementById('nodes').textContent = nodes.toLocaleString();
+            document.getElementById('time').textContent = time.toFixed(3) + 's';
+            document.getElementById('minimaxValue').textContent = value === 0 ? '0 (empate)' : (value > 0 ? '+1 (X gana)' : '-1 (O gana)');
+            document.getElementById('bestMove').textContent = move ? `(${move[0]}, ${move[1]})` : '-';
+        }
+        
+        function addToHistory(player, move, nodes) {
+            const historyEl = document.getElementById('history');
+            const moveNum = moveHistory.length + 1;
+            moveHistory.push({ player, move });
+            
+            const entry = document.createElement('div');
+            entry.className = player === X ? 'move-x' : 'move-o';
+            entry.textContent = `${moveNum}. ${player} → (${move[0]}, ${move[1]}) [${nodes.toLocaleString()} nodos]`;
+            historyEl.appendChild(entry);
+            historyEl.scrollTop = historyEl.scrollHeight;
+        }
+        
+        function getHumanPlayer() {
+            return document.getElementById('humanPlayer').value;
+        }
+        
+        function getAIPlayer() {
+            return getHumanPlayer() === X ? O : X;
+        }
+        
+        function getCurrentTurn() {
+            const xCount = board.flat().filter(c => c === X).length;
+            const oCount = board.flat().filter(c => c === O).length;
+            return xCount <= oCount ? X : O;
+        }
+        
+        // ============================================================
+        // LÓGICA DEL JUEGO
+        // ============================================================
+        
+        function handleCellClick(r, c) {
+            if (gameOver || board[r][c] !== EMPTY) return;
+            
+            const human = getHumanPlayer();
+            const currentTurn = getCurrentTurn();
+            
+            if (currentTurn !== human) return;
+            
+            // Movimiento humano
+            board[r][c] = human;
+            addToHistory(human, [r, c], 0);
+            updateBoard();
+            
+            if (checkGameEnd()) return;
+            
+            // Turno de la IA
+            setTimeout(makeAIMove, 100);
+        }
+        
+        function makeAIMove() {
+            if (gameOver) return;
+            
+            const ai = getAIPlayer();
+            const algorithm = document.getElementById('algorithm').value;
+            
+            updateStatus('🤔 IA pensando...', 'thinking');
+            
+            setTimeout(() => {
+                const start = performance.now();
+                const result = getBestMove(board, ai, algorithm);
+                const elapsed = (performance.now() - start) / 1000;
+                
+                board[result.move[0]][result.move[1]] = ai;
+                
+                updateBoard();
+                updateStats(result.nodes, elapsed, result.value, result.move);
+                addToHistory(ai, result.move, result.nodes);
+                
+                if (!checkGameEnd()) {
+                    updateStatus(`Tu turno (${getHumanPlayer()})`);
+                }
+            }, 50);
+        }
+        
+        function checkGameEnd() {
+            const result = checkWinner(board);
+            
+            if (result) {
+                gameOver = true;
+                if (result.winner === X) {
+                    updateStatus('🏆 ¡Ganó X!', 'win-x');
+                } else {
+                    updateStatus('🏆 ¡Ganó O!', 'win-o');
+                }
+                updateBoard();
+                return true;
+            }
+            
+            if (getActions(board).length === 0) {
+                gameOver = true;
+                updateStatus('🤝 ¡Empate!', 'draw');
+                return true;
+            }
+            
+            return false;
+        }
+        
+        function resetGame() {
+            board = [[' ', ' ', ' '], [' ', ' ', ' '], [' ', ' ', ' ']];
+            gameOver = false;
+            moveHistory = [];
+            
+            document.getElementById('history').innerHTML = 'Partida nueva...';
+            document.getElementById('nodes').textContent = '-';
+            document.getElementById('time').textContent = '-';
+            document.getElementById('minimaxValue').textContent = '-';
+            document.getElementById('bestMove').textContent = '-';
+            
+            updateBoard();
+            
+            const human = getHumanPlayer();
+            
+            if (human === O) {
+                // IA juega primero
+                updateStatus('🤔 IA pensando...', 'thinking');
+                setTimeout(makeAIMove, 300);
+            } else {
+                updateStatus(`Tu turno (${human})`);
+            }
+        }
+        
+        // ============================================================
+        // BENCHMARK
+        // ============================================================
+        
+        function runBenchmark() {
+            updateStatus('⏳ Ejecutando benchmark...', 'thinking');
+            
+            setTimeout(() => {
+                const emptyBoard = [[' ', ' ', ' '], [' ', ' ', ' '], [' ', ' ', ' ']];
+                
+                // Minimax puro
+                nodesExplored = 0;
+                let start = performance.now();
+                minimax(emptyBoard, true);
+                let minimaxTime = (performance.now() - start) / 1000;
+                let minimaxNodes = nodesExplored;
+                
+                // Alfa-Beta
+                nodesExplored = 0;
+                start = performance.now();
+                alphabeta(emptyBoard, true, -Infinity, Infinity);
+                let abTime = (performance.now() - start) / 1000;
+                let abNodes = nodesExplored;
+                
+                // Alfa-Beta ordenado
+                nodesExplored = 0;
+                start = performance.now();
+                alphabetaOrdered(emptyBoard, true, -Infinity, Infinity);
+                let orderedTime = (performance.now() - start) / 1000;
+                let orderedNodes = nodesExplored;
+                
+                // Actualizar tabla
+                document.getElementById('bench-minimax-nodes').textContent = minimaxNodes.toLocaleString();
+                document.getElementById('bench-minimax-time').textContent = minimaxTime.toFixed(3) + 's';
+                
+                document.getElementById('bench-alphabeta-nodes').textContent = abNodes.toLocaleString();
+                document.getElementById('bench-alphabeta-time').textContent = abTime.toFixed(3) + 's';
+                document.getElementById('bench-alphabeta-improvement').textContent = (minimaxNodes / abNodes).toFixed(1) + 'x';
+                
+                document.getElementById('bench-ordered-nodes').textContent = orderedNodes.toLocaleString();
+                document.getElementById('bench-ordered-time').textContent = orderedTime.toFixed(3) + 's';
+                document.getElementById('bench-ordered-improvement').textContent = (minimaxNodes / orderedNodes).toFixed(1) + 'x';
+                
+                updateStatus(`Tu turno (${getHumanPlayer()})`);
+                
+                alert(`Benchmark completo!\n\nMinimax: ${minimaxNodes.toLocaleString()} nodos (${minimaxTime.toFixed(2)}s)\nAlfa-Beta: ${abNodes.toLocaleString()} nodos (${abTime.toFixed(3)}s)\nAlfa-Beta ordenado: ${orderedNodes.toLocaleString()} nodos (${orderedTime.toFixed(3)}s)\n\nMejora Alfa-Beta: ${(minimaxNodes/abNodes).toFixed(1)}x\nMejora AB ordenado: ${(minimaxNodes/orderedNodes).toFixed(1)}x`);
+            }, 100);
+        }
+        
+        // ============================================================
+        // INICIALIZACIÓN
+        // ============================================================
+        
+        createBoard();
+        resetGame();
+    </script>
+</body>
+</html>
