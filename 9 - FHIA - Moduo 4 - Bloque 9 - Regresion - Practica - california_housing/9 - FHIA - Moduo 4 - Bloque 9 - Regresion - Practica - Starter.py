@@ -61,8 +61,9 @@ X_test_bias = np.c_[np.ones(X_test_scaled.shape[0]), X_test_scaled]
 
 def mse(y_true, y_pred):
     """Mean Squared Error."""
-    # TODO: implementar MSE
-    return None
+    y_true = np.asarray(y_true)
+    y_pred = np.asarray(y_pred)
+    return np.mean((y_true - y_pred) ** 2)
 
 
 def diagnosticar_modelo(train_mse, test_mse, threshold=0.15):
@@ -81,16 +82,12 @@ def diagnosticar_modelo(train_mse, test_mse, threshold=0.15):
     gap = test_mse - train_mse
     print(f"Gap test-train: {gap}")
 
-    # TODO: completar lógica de diagnóstico
-    # Pista:
-    # if gap > threshold:
-    #     print("Posible OVERFITTING")
-    # elif train_mse > 1.0 and test_mse > 1.0:
-    #     print("Posible UNDERFITTING")
-    # else:
-    #     print("BUEN AJUSTE relativo")
-
-    print("TODO: completar diagnóstico")
+    if gap > threshold:
+        print("Diagnóstico: posible OVERFITTING")
+    elif train_mse > 1.0 and test_mse > 1.0:
+        print("Diagnóstico: posible UNDERFITTING")
+    else:
+        print("Diagnóstico: BUEN AJUSTE relativo")
 
 
 # ============================================================
@@ -102,12 +99,12 @@ print("BASELINE: predecir siempre la media del training set")
 print("="*60)
 
 # TODO: predecir siempre la media de y_train
-baseline_pred_train = None
-baseline_pred_test = None
+baseline_pred_train = np.full_like(y_train, fill_value=np.mean(y_train), dtype=float)
+baseline_pred_test = np.full_like(y_test, fill_value=np.mean(y_train), dtype=float)
 
 # TODO: calcular MSE de baseline
-baseline_mse_train = None
-baseline_mse_test = None
+baseline_mse_train = mse(y_train, baseline_pred_train)
+baseline_mse_test = mse(y_test, baseline_pred_test)
 
 print(f"MSE Train baseline: {baseline_mse_train}")
 print(f"MSE Test baseline:  {baseline_mse_test}")
@@ -131,9 +128,7 @@ def normal_equations(X, y):
     Recomendación:
     usar np.linalg.pinv(X) @ y para mayor estabilidad numérica.
     """
-    # TODO: implementar solución analítica
-    w = None
-    return w
+    return np.linalg.pinv(X) @ y
 
 
 print("\n" + "="*60)
@@ -144,13 +139,13 @@ start = time.time()
 w_normal = normal_equations(X_train_bias, y_train)
 time_normal = time.time() - start
 
-# TODO: calcular predicciones
-y_pred_train_normal = None
-y_pred_test_normal = None
+# Calcular predicciones
+y_pred_train_normal = X_train_bias @ w_normal
+y_pred_test_normal = X_test_bias @ w_normal
 
-# TODO: calcular MSE
-mse_train_normal = None
-mse_test_normal = None
+# Calcular MSE
+mse_train_normal = mse(y_train, y_pred_train_normal)
+mse_test_normal = mse(y_test, y_pred_test_normal)
 
 print(f"Tiempo entrenamiento: {time_normal:.4f} segundos")
 print(f"MSE Train: {mse_train_normal}")
@@ -179,16 +174,16 @@ def gradient_descent(X, y, alpha=0.01, iterations=1000, verbose=True):
 
     for i in range(iterations):
         # TODO 1: predicción
-        y_pred = None
+        y_pred = X @ w
 
         # TODO 2: error
-        error = None
+        error = y_pred - y
 
         # TODO 3: gradiente
-        gradient = None
+        gradient = (2 / n_samples) * (X.T @ error)
 
         # TODO 4: update de pesos
-        w = None
+        w = w - alpha * gradient
 
         # Monitorear pérdida
         loss = mse(y, y_pred)
@@ -214,13 +209,13 @@ w_gd, losses = gradient_descent(
 )
 time_gd = time.time() - start
 
-# TODO: calcular predicciones
-y_pred_train_gd = None
-y_pred_test_gd = None
+# Calcular predicciones
+y_pred_train_gd = X_train_bias @ w_gd
+y_pred_test_gd = X_test_bias @ w_gd
 
-# TODO: calcular MSE
-mse_train_gd = None
-mse_test_gd = None
+# Calcular MSE
+mse_train_gd = mse(y_train, y_pred_train_gd)
+mse_test_gd = mse(y_test, y_pred_test_gd)
 
 print(f"\nTiempo entrenamiento: {time_gd:.4f} segundos")
 print(f"MSE Train: {mse_train_gd}")
